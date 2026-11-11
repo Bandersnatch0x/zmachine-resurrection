@@ -1,4 +1,5 @@
 export { createZMachine, runTurn } from "./interpreter";
+export { isDark, observe } from "./observe";
 export { hasClauseSeparator, parseCommand } from "./parse";
 export {
   DIRECTIONS,
@@ -6,7 +7,9 @@ export {
   isDirection,
   validateCommand,
 } from "./protocol";
-export { INITIAL_STATE, WORLD } from "./world";
+export { replay, replayTranscript, sameState } from "./replay";
+export { INITIAL_STATE } from "./world";
+export type { WorldView } from "./observe";
 export type { Command, Direction } from "./protocol";
 export type {
   DoorId,

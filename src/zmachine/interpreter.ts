@@ -1,3 +1,4 @@
+import { isDark, observe } from "./observe";
 import { normalizeNoun } from "./protocol";
 import type { Command, Direction } from "./protocol";
 import type {
@@ -32,52 +33,24 @@ function carrying(state: WorldState, id: ItemId): boolean {
   return state.items[id].placement.kind === "carried";
 }
 
-function carriedLampLit(state: WorldState): boolean {
-  const lamp = state.items.lamp;
-  if (lamp.kind !== "lamp") {
-    return false;
-  }
-  return lamp.placement.kind === "carried" && lamp.lit;
-}
-
-function isDark(state: WorldState): boolean {
-  return WORLD.rooms[state.location].dark && !carriedLampLit(state);
-}
-
-function visibleItemNames(state: WorldState): readonly string[] {
-  return (Object.keys(state.items) as ItemId[])
-    .filter((id) => {
-      const placement = state.items[id].placement;
-      return placement.kind === "room" && placement.room === state.location;
-    })
-    .map((id) => WORLD.items[id].name);
-}
-
 function roomText(state: WorldState): string {
   if (isDark(state)) {
     return "It is dark. You cannot see anything.";
   }
-  const room = WORLD.rooms[state.location];
-  const visible = visibleItemNames(state);
-  if (visible.length === 0) {
-    return room.description;
+  const view = observe(state);
+  const description = WORLD.rooms[state.location].description;
+  if (view.visibleItems.length === 0) {
+    return description;
   }
-  return `${room.description} You see: ${visible.join(", ")}.`;
+  return `${description} You see: ${view.visibleItems.join(", ")}.`;
 }
 
 function inventoryText(state: WorldState): string {
-  const carried = (Object.keys(state.items) as ItemId[]).filter((id) =>
-    carrying(state, id),
-  );
+  const carried = observe(state).carriedItems;
   if (carried.length === 0) {
     return "You are empty-handed.";
   }
-  const names = carried.map((id) => {
-    const item = state.items[id];
-    const name = WORLD.items[id].name;
-    return item.kind === "lamp" && item.lit ? `${name} (lit)` : name;
-  });
-  return `You are carrying: ${names.join(", ")}.`;
+  return `You are carrying: ${carried.join(", ")}.`;
 }
 
 function go(state: Snapshot, direction: Direction): TurnResult {

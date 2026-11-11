@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { INITIAL_STATE, parseCommand, runTurn, WORLD } from "../src/zmachine";
+import { INITIAL_STATE, parseCommand, runTurn } from "../src/zmachine";
+import { WORLD } from "../src/zmachine/world";
 import type { Command, Direction, RoomId, Snapshot } from "../src/zmachine";
 
 const COMMANDS: readonly Command[] = [
