@@ -29,7 +29,9 @@
 设计为两个边界代理:
 
 - **解释器代理**:只改 `src/zmachine/`,必须同时提交性质测试。
-- **前端代理**:只改 `src/main.ts` 与样式,禁止构造 `WorldState`。
+- **前端代理**:只改 `src/main.ts`、`src/ui/`、`src/session/` 与样式,禁止导入
+  `WorldState`、`INITIAL_STATE`、`runTurn`、`createZMachine`。这条边界由
+  `tests/boundary.test.ts` 机械执行,不靠人工自觉。
 
 依据是 `docs/agents/decisions/0001-state-authority.md`。
 
@@ -50,8 +52,8 @@
 (终端外壳、确定性回合、边界约束、单一状态所有者、重放恢复、门禁),
 每条都有可判定的验收条件。
 
-实现与规格的对应关系:`runTurn` 对应 R2/R3,`ZMachine` 接口对应 R4,
-`restore` 对应 R5,`npm run check` 对应 R6。
+实现与规格的对应关系:`runTurn` 对应 R2/R3,`Snapshot` 与 `restore` 对应 R4/R5,
+会话日志与 `replay` 对应 R5,`npm run check` 对应 R6。
 
 ## 5. Steering docs
 
@@ -75,13 +77,18 @@
 
 ## 7. Property-based testing
 
-`tests/interpreter.test.ts` 用 `fast-check` 生成最多 40 步的命令序列,断言三件事:
+测试按边界分文件,`fast-check` 断言下列性质:
 
-1. 同一序列两次执行的状态与转写完全相同(R2)。
-2. 位置永远只在合法房间内,回合数不越界(R3)。
-3. 任意切分后重放整段序列,结果与一次跑完相同(R5)。
+| 文件 | 性质 |
+| --- | --- |
+| `tests/interpreter.test.ts` | 同序列同结果;位置与回合数不越界;输入状态不被修改;进 vault 必须先开 hatch;开 hatch 必须带钥匙;黑暗房间拒绝一切改变世界的命令;拒绝按引用返回 |
+| `tests/machine.test.ts` | 恢复加后缀等价;机器与 `replay` 同状态;`observe` 投影不泄漏可变状态 |
+| `tests/protocol.test.ts` | 命令文本往返;多余状态字段被拒 |
+| `tests/frontend.test.ts` | `compileIntent` 任意输入不抛异常;意图全有或全无 |
+| `tests/session.test.ts` | 会话日志重放等价于直接重放 |
 
-命令表包含 `""`、`xyzzy`、`  NORTH  ` 这类边界输入,用来证明「听不懂」不改变状态。
+固定样例覆盖黄金走通、固定错误意图的幻觉拒绝、灯与黑暗、内容完整性、
+回退提示、恢复与重放、假 fetch 的 HTTP 适配器、服务端 handler 与开发中间件。
 
 ## 8. Kiro powers
 

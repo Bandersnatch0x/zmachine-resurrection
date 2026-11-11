@@ -13,6 +13,8 @@
 | 本地可运行 | `npm install && npm run dev` | `README.md` | 已完成 |
 | 门禁 | `npm run check` 全绿 | `package.json` | 已完成 |
 | 构建 | `npm run build` 通过 | `dist/` | 已完成 |
+| 可玩回合 | 三个房间、灯与黑暗、钥匙与 hatch、SAVE/RESTORE/REPLAY | `src/` | 已完成 |
+| 模型前端 | 规则解析器可用;模型经 `/api/interpret` 或外部代理 | `src/frontend/`, `api/` | 已完成(模型需配 key) |
 | 项目描述 | Devpost 文本,中英各一版,≤500 词 | `docs/submission/project-description.md` | 进行中 |
 | Kiro 使用说明 | 覆盖 8 个提示,逐节作答 | `docs/submission/kiro-usage.md` | 进行中(部分待证据) |
 | 演示视频 | 公开 YouTube,≤3 分钟 | 待录制 | 待办 |
@@ -26,3 +28,6 @@
 2. 部署应用并把 URL 填进 Devpost 与 `README.md`。
 3. 录 3 分钟以内视频:问题 → 状态边界 → 现场演示(含一次幻觉被解释器拒绝)→ 重放。
 4. 确认 GitHub About 展示 MIT,`.kiro/` 未被 `.gitignore` 命中。
+5. 演示脚本:依次输入 `north`、`south`、`look`、`xyzzy`,状态栏应显示
+   `state: cell · moves: 2`;再输入 `take the key and go north`、`SAVE`、`go east`
+   (被 hatch 拒绝)、`RESTORE`、`REPLAY`。
