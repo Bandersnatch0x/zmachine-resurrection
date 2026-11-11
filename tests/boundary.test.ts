@@ -27,6 +27,7 @@ function sourceFiles(directory: string): readonly { path: string; text: string }
 
 const SRC = sourceFiles("src");
 const ZMACHINE = SRC.filter((file) => file.path.startsWith("src/zmachine/"));
+const UI = SRC.filter((file) => file.path.startsWith("src/ui/") || file.path === "src/main.ts");
 
 function offenders(
   files: readonly { path: string; text: string }[],
@@ -73,6 +74,12 @@ describe("secret confinement", () => {
 });
 
 describe("state authority boundary", () => {
+  it("keeps UI code off the mutable world types and the machine", () => {
+    const forbidden =
+      /\b(?:WorldState|INITIAL_STATE|runTurn|createZMachine|sealSnapshot|Snapshot)\b/;
+    expect(offenders(UI, forbidden)).toEqual([]);
+  });
+
   it("keeps the machine barrel from exporting mutable world internals", () => {
     const barrel = SRC.find((file) => file.path === "src/zmachine/index.ts");
     expect(barrel).toBeDefined();

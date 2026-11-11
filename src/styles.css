@@ -77,6 +77,16 @@ body {
   color: var(--error);
 }
 
+.line--notice {
+  color: var(--dim);
+  font-style: italic;
+}
+
+.line--meta {
+  color: var(--accent);
+  letter-spacing: 0.08em;
+}
+
 .line + .line {
   margin-top: 0.35rem;
 }
