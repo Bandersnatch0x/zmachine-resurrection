@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { detectLocale, fill, nextLocale, say, t, text } from "../src/i18n";
 import type { Text } from "../src/i18n";
 import { createSession } from "../src/session/session";
+import { helpSections } from "../src/ui/help";
 import { INITIAL_STATE, observe, runTurn } from "../src/zmachine";
 
 describe("locale detection", () => {
@@ -46,6 +47,56 @@ describe("template fill", () => {
 
   it("localizes before filling", () => {
     expect(say("zh", text("{moves} moves", "{moves} 步"), { moves: 3 })).toBe("3 步");
+  });
+});
+
+describe("help sections", () => {
+  it("lists the six reference sections in English", () => {
+    const sections = helpSections("en");
+
+    expect(sections.map((section) => section.title)).toEqual([
+      "What this is",
+      "Goal",
+      "Typed commands",
+      "Natural language",
+      "Meta commands",
+      "Why the model cannot cheat",
+    ]);
+    expect(sections[2]?.rows.map((row) => row.term)).toEqual([
+      "LOOK",
+      "INVENTORY",
+      "WAIT",
+      "NORTH/SOUTH/EAST/WEST",
+      "TAKE",
+      "DROP",
+      "LIGHT LAMP",
+      "EXTINGUISH LAMP",
+      "OPEN",
+    ]);
+    expect(sections[3]?.rows.map((row) => row.term)).toContain("take the key and go north");
+    expect(sections[5]?.paragraphs).toHaveLength(1);
+  });
+
+  it("renders the same six sections in Chinese", () => {
+    const sections = helpSections("zh");
+
+    expect(sections).toHaveLength(6);
+    expect(sections.map((section) => section.title)).toEqual([
+      "这是什么",
+      "目标",
+      "键入命令",
+      "自然语言",
+      "元命令",
+      "模型为什么不能作弊",
+    ]);
+    expect(sections[2]?.rows[0]).toEqual({ term: "LOOK", description: "查看当前房间。" });
+    expect(sections[4]?.rows.map((row) => row.term)).toEqual([
+      "SAVE",
+      "RESTORE",
+      "REPLAY",
+      "HELP",
+      "ENDPOINT [url]",
+    ]);
   });
 });
 
