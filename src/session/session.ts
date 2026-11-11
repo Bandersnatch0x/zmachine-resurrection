@@ -105,7 +105,3 @@ export function createSession(start: Snapshot = INITIAL_STATE): Session {
     },
   };
 }
-
-export function commandLog(entries: readonly SessionEntry[]): readonly Command[] {
-  return entries.flatMap((entry) => entry.commands);
-}

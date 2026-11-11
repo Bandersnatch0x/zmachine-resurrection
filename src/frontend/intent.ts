@@ -1,8 +1,7 @@
-import { MAX_NOUN_LENGTH, normalizeNoun, validateCommand } from "../zmachine/protocol";
+import { validateCommand } from "../zmachine/protocol";
 import type { Command } from "../zmachine/protocol";
 
 export const MAX_INTENTS = 8;
-export const MAX_RAW_INTENT_LENGTH = 200;
 export const MAX_CLAIM_LENGTH = 160;
 
 export interface Intent {
@@ -86,30 +85,4 @@ export function compileIntent(raw: unknown): CompileResult {
   }
 
   return { ok: true, intent: { commands, claims: readClaims(raw) } };
-}
-
-export function intentText(intent: Intent): string {
-  return intent.commands
-    .map((command) => {
-      switch (command.kind) {
-        case "go":
-          return `go ${command.direction}`;
-        case "take":
-          return `take ${command.noun}`;
-        case "drop":
-          return `drop ${command.noun}`;
-        case "open":
-          return `open ${command.noun}`;
-        case "lamp":
-          return command.lit ? "light lamp" : "extinguish lamp";
-        default:
-          return command.kind;
-      }
-    })
-    .join(", ");
-}
-
-export function isNounLike(value: string): boolean {
-  const noun = normalizeNoun(value);
-  return noun.length > 0 && noun.length <= MAX_NOUN_LENGTH;
 }

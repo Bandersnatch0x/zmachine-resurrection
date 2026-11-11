@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { compileIntent } from "../src/frontend/intent";
 import { interpret } from "../src/frontend/interpret";
 import type { IntentSource } from "../src/frontend/sources";
-import { createRuleSource, parseRuleIntent } from "../src/frontend/sources";
+import {
+  createHttpSource,
+  createRuleSource,
+  parseRuleIntent,
+  sourceFromEndpoint,
+} from "../src/frontend/sources";
 
 const junk: fc.Arbitrary<unknown> = fc.oneof(
   fc.constant(null),
@@ -137,6 +142,50 @@ describe("rule source", () => {
     const payload = await source.interpret("light the lamp and go north");
     const compiled = compileIntent(payload);
     expect(compiled.ok).toBe(true);
+  });
+});
+
+describe("HTTP source", () => {
+  it("posts the raw input and returns the parsed payload", async () => {
+    let seenUrl = "";
+    let seenBody: unknown = null;
+    const fakeFetch: typeof fetch = (url, init) => {
+      seenUrl = String(url);
+      seenBody = JSON.parse(String(init?.body));
+      expect(init?.method).toBe("POST");
+      expect(new Headers(init?.headers).get("Content-Type")).toBe("application/json");
+      return Promise.resolve(
+        new Response(JSON.stringify({ commands: [{ kind: "look" }] }), { status: 200 }),
+      );
+    };
+
+    const source = createHttpSource("/api/interpret", fakeFetch);
+    const payload = await source.interpret("take the key and go north");
+
+    expect(seenUrl).toBe("/api/interpret");
+    expect(seenBody).toEqual({ input: "take the key and go north" });
+    expect(payload).toEqual({ commands: [{ kind: "look" }] });
+    expect(compileIntent(payload).ok).toBe(true);
+  });
+
+  it("throws on a non-2xx reply so the orchestrator can fall back", async () => {
+    const source = createHttpSource("/api/interpret", () =>
+      Promise.resolve(new Response("{}", { status: 503 })),
+    );
+    await expect(source.interpret("go north")).rejects.toThrow("503");
+
+    const outcome = await interpret("walk north", source);
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.via).toBe("rules");
+      expect(outcome.notices[0]?.text).toContain("503");
+    }
+  });
+
+  it("only builds an HTTP source when an endpoint is set", () => {
+    expect(sourceFromEndpoint(undefined).id).toBe("rules");
+    expect(sourceFromEndpoint("   ").id).toBe("rules");
+    expect(sourceFromEndpoint("/api/interpret").id).toBe("http");
   });
 });
 

@@ -7,7 +7,7 @@ export {
   isDirection,
   validateCommand,
 } from "./protocol";
-export { replay, replayTranscript, sameState } from "./replay";
+export { replay, sameState } from "./replay";
 export { INITIAL_STATE } from "./world";
 export type { WorldView } from "./observe";
 export type { Command, Direction } from "./protocol";

@@ -1,7 +1,6 @@
 import { runTurn } from "./interpreter";
 import type { Command } from "./protocol";
-import type { Snapshot, TurnResult } from "./types";
-import type { ItemId } from "./types";
+import type { ItemId, Snapshot } from "./types";
 import { INITIAL_STATE } from "./world";
 
 function sameItems(
@@ -56,16 +55,4 @@ export function sameState(a: Snapshot, b: Snapshot): boolean {
 
 export function replay(commands: readonly Command[], start: Snapshot = INITIAL_STATE): Snapshot {
   return commands.reduce<Snapshot>((state, command) => runTurn(state, command).state, start);
-}
-
-export function replayTranscript(
-  commands: readonly Command[],
-  start: Snapshot = INITIAL_STATE,
-): readonly TurnResult[] {
-  let state = start;
-  return commands.map((command) => {
-    const result = runTurn(state, command);
-    state = result.state;
-    return result;
-  });
 }

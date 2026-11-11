@@ -1,4 +1,3 @@
-import { isDirection } from "../zmachine/protocol";
 import type { Command, Direction } from "../zmachine/protocol";
 
 export interface IntentSource {
@@ -154,4 +153,3 @@ export function sourceFromEndpoint(
   return createHttpSource(endpoint, fetchImpl);
 }
 
-export { isDirection };
