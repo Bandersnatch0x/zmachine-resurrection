@@ -1,2 +1,10 @@
 export { INITIAL_STATE, createZMachine, runTurn } from "./interpreter";
-export type { Direction, LocationId, TurnResult, WorldState, ZMachine } from "./types";
+export { hasClauseSeparator, parseCommand } from "./parse";
+export {
+  DIRECTIONS,
+  formatCommand,
+  isDirection,
+  validateCommand,
+} from "./protocol";
+export type { Command, Direction } from "./protocol";
+export type { LocationId, TurnResult, WorldState, ZMachine } from "./types";
