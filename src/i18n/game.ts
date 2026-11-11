@@ -41,7 +41,7 @@ export const gameText = {
   } satisfies Record<DoorId, Text>,
   messages: {
     dark: text("It is dark. You cannot see anything.", "一片漆黑，你什么也看不见。"),
-    seeItems: text("You see: {items}.", "你看见：{items}。"),
+    roomWithItems: text("{description} You see: {items}.", "{description}你看见：{items}。"),
     lit: text(" (lit)", "（亮着）"),
     emptyHanded: text("You are empty-handed.", "你两手空空。"),
     carrying: text("You are carrying: {items}.", "你带着：{items}。"),

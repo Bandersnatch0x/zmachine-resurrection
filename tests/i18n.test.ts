@@ -114,8 +114,12 @@ describe("localized game text", () => {
   });
 
   it("runs a turn in the requested locale and defaults to English", () => {
-    expect(runTurn(INITIAL_STATE, { kind: "look" }).output[0]).toContain("Cell.");
-    expect(runTurn(INITIAL_STATE, { kind: "look" }, "zh").output[0]).toContain("牢房。");
+    expect(runTurn(INITIAL_STATE, { kind: "look" }).output[0]).toContain(
+      "north. You see: brass key.",
+    );
+    expect(runTurn(INITIAL_STATE, { kind: "look" }, "zh").output[0]).toContain(
+      "。你看见：黄铜钥匙。",
+    );
     expect(runTurn(INITIAL_STATE, { kind: "take", noun: "key" }, "zh").output).toEqual([
       "已拾取：黄铜钥匙。",
     ]);

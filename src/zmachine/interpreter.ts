@@ -47,7 +47,7 @@ function roomText(state: WorldState, locale: Locale): string {
     return description;
   }
   const items = view.visibleItems.join(t(locale, gameText.messages.listSeparator));
-  return `${description} ${say(locale, gameText.messages.seeItems, { items })}`;
+  return say(locale, gameText.messages.roomWithItems, { description, items });
 }
 
 function inventoryText(state: WorldState, locale: Locale): string {
