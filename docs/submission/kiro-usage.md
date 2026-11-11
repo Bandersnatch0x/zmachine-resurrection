@@ -33,6 +33,7 @@
   `src/main.ts` 与 `src/ui/**` 不得出现 `WorldState`、`INITIAL_STATE`、`runTurn`、
   `createZMachine`、`sealSnapshot`、`Snapshot` 任一标识符。这条边界由
   `tests/boundary.test.ts` 的「state authority boundary」组机械执行,不靠人工自觉。
+  该组只扫这两个位置,`src/session/` 不在扫描范围内。
 
 该组另查两件事:机器出口不导出 `WorldState`、不用 `export *`;`package.json` 的
 `dependencies` 为空,`devDependencies` 不含框架、状态库、解析器与模型 SDK。
