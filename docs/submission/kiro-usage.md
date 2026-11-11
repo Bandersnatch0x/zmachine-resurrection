@@ -29,9 +29,13 @@
 设计为两个边界代理:
 
 - **解释器代理**:只改 `src/zmachine/`,必须同时提交性质测试。
-- **前端代理**:只改 `src/main.ts`、`src/ui/`、`src/session/` 与样式,禁止导入
-  `WorldState`、`INITIAL_STATE`、`runTurn`、`createZMachine`。这条边界由
-  `tests/boundary.test.ts` 机械执行,不靠人工自觉。
+- **前端代理**:只改 `src/main.ts`、`src/ui/`、`src/session/` 与样式。其中
+  `src/main.ts` 与 `src/ui/**` 不得出现 `WorldState`、`INITIAL_STATE`、`runTurn`、
+  `createZMachine`、`sealSnapshot`、`Snapshot` 任一标识符。这条边界由
+  `tests/boundary.test.ts` 的「state authority boundary」组机械执行,不靠人工自觉。
+
+该组另查两件事:机器出口不导出 `WorldState`、不用 `export *`;`package.json` 的
+`dependencies` 为空,`devDependencies` 不含框架、状态库、解析器与模型 SDK。
 
 依据是 `docs/agents/decisions/0001-state-authority.md`。
 
@@ -53,7 +57,9 @@
 每条都有可判定的验收条件。
 
 实现与规格的对应关系:`runTurn` 对应 R2/R3,`Snapshot` 与 `restore` 对应 R4/R5,
-会话日志与 `replay` 对应 R5,`npm run check` 对应 R6。
+会话日志与 `replay` 对应 R5,`npm run check` 对应 R6。R2 的判据是「同一个
+`Snapshot` 加同一个 `Command[]` 得到同一个结果」,测试 `tests/interpreter.test.ts`
+用两次独立重放比较状态与输出,不是把同一次调用与自己比较。
 
 ## 5. Steering docs
 
@@ -81,14 +87,19 @@
 
 | 文件 | 性质 |
 | --- | --- |
-| `tests/interpreter.test.ts` | 同序列同结果;位置与回合数不越界;输入状态不被修改;进 vault 必须先开 hatch;开 hatch 必须带钥匙;黑暗房间拒绝一切改变世界的命令;拒绝按引用返回 |
+| `tests/interpreter.test.ts` | 两次独立重放同序列得到同状态同输出;位置与回合数不越界;深冻结的输入状态在整串命令后仍不抛异常;进 vault 必须先开 hatch;开 hatch 必须带钥匙;黑暗房间拒绝一切改变世界的命令;拒绝按引用返回 |
 | `tests/machine.test.ts` | 恢复加后缀等价;机器与 `replay` 同状态;`observe` 投影不泄漏可变状态 |
 | `tests/protocol.test.ts` | 命令文本往返;多余状态字段被拒 |
-| `tests/frontend.test.ts` | `compileIntent` 任意输入不抛异常;意图全有或全无 |
-| `tests/session.test.ts` | 会话日志重放等价于直接重放 |
+| `tests/frontend.test.ts` | `compileIntent` 任意输入不抛异常;意图全有或全无;claim 数量封顶 |
+| `tests/session.test.ts` | 会话日志重放等价于直接重放;重放从创建时的起点快照开始 |
+| `tests/endpoint.test.ts` | 端点按 query → localStorage → 构建变量的顺序解析;只接受 http(s) |
 
 固定样例覆盖黄金走通、固定错误意图的幻觉拒绝、灯与黑暗、内容完整性、
-回退提示、恢复与重放、假 fetch 的 HTTP 适配器、服务端 handler 与开发中间件。
+回退提示、恢复与重放、假 fetch 的 HTTP 适配器(含超时中止)、服务端 handler
+与开发中间件。
+
+`tests/boundary.test.ts` 的源码扫描只走仓库源码,跳过 `node_modules`、`dist`、
+`coverage`、`.git`、`.audit`、`.agent`、`.agents`、`.orchestration`、`.playwright-cli`。
 
 ## 8. Kiro powers
 

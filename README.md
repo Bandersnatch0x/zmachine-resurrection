@@ -60,9 +60,9 @@ LLM 驱动的游戏最容易坏在两处:模型编造世界状态,以及同一�
 
 - **规则解析器**是真正的确定性解析器,不是 mock。它认得 take / pick up / grab / get、
   drop、go / walk / head / move 与裸方向、light / ignite、extinguish / put out / douse、
-  unlock / open、look、inventory、wait,并按 `and`、`then`、逗号、分号拆分复合子句。
-- **模型输出**里任何 `claim`、`claims`、`narration` 字符串都会被收集、截断,渲染成
-  「ignored model claim」提示。它永远不成为叙述,也永远不碰状态。
+  unlock / open、look、inventory、wait,并按 `and`、`then`、逗号、分号、句号拆分复合子句。
+- **模型输出**里任何 `claim`、`claims`、`narration` 字符串都会被收集、截断到 160 字符,
+  最多保留 4 条,渲染成「ignored model claim」提示。它永远不成为叙述,也永远不碰状态。
 
 ## 本地运行
 
@@ -82,8 +82,13 @@ npm run build    # 产出 dist/
 
 - **本地开发**:Vite 开发中间件在 `/api/interpret` 读 `process.env.LLM_API_KEY`,
   由开发服务器转发给模型提供方。key 只存在于开发进程里。
-- **生产**:把 `VITE_INTERPRET_ENDPOINT` 指向外部代理。
+- **生产**:端点按 `?endpoint=` → `localStorage["interpret-endpoint"]` →
+  `VITE_INTERPRET_ENDPOINT` 的顺序在运行时解析,只接受 `http:` 与 `https:`。
+  部署页无需重新构建即可换端点:输入 `ENDPOINT https://proxy.example/interpret`
+  写入 localStorage 并重载,输入 `ENDPOINT` 打印当前值。无效值会回退到规则解析器并在转写区提示。
 - **都不配**:规则解析器接管,状态栏写明 `input: rule parser`。
+
+请求带 4000 ms 超时;超时抛出 `interpret endpoint timed out`,随后照常回退。
 
 ```bash
 # PowerShell
@@ -108,6 +113,7 @@ npm run dev
 - **边界扫描**:`src/zmachine/**` 不含 Date、Math.random、fetch、window、document、
   localStorage、performance.now、setTimeout;`src/**` 不含 key 或 Authorization 头;
   UI 代码不导入 `WorldState`、`INITIAL_STATE`、`runTurn`、`createZMachine`。
+  扫描只走仓库源码,跳过 `node_modules`、`dist`、`coverage`、`.git`、`.audit` 等目录。
 
 验收冒烟:依次输入 `north`、`south`、`look`、`xyzzy`,最终停在 `cell`,`moves: 2`。
 
@@ -124,7 +130,8 @@ npm run dev
 | `src/zmachine/replay.ts` | `replay`、`sameState` |
 | `src/zmachine/index.ts` | 公共出口,导出 `Snapshot` 而非 `WorldState` |
 | `src/frontend/intent.ts` | `Intent`、`compileIntent`、上限 |
-| `src/frontend/sources.ts` | `IntentSource`、HTTP 源、规则源 |
+| `src/frontend/endpoint.ts` | 运行时端点解析与 http(s) 校验 |
+| `src/frontend/sources.ts` | `IntentSource`、HTTP 源(带超时)、规则源 |
 | `src/frontend/interpret.ts` | 类型化路径、模型/规则回退、`InterpretOutcome` |
 | `src/session/session.ts` | 命令日志、检查点、恢复、重放 |
 | `src/ui/render.ts` | 转写渲染、行类别 |
