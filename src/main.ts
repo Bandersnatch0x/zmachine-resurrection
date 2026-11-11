@@ -1,5 +1,5 @@
-import { createZMachine } from "./zmachine";
-import type { TurnResult } from "./zmachine";
+import { INITIAL_STATE, parseCommand, runTurn } from "./zmachine";
+import type { Snapshot, TurnResult } from "./zmachine";
 import "./styles.css";
 
 function requireElement<T extends Element>(selector: string): T {
@@ -15,7 +15,7 @@ const form = requireElement<HTMLFormElement>("#prompt-form");
 const input = requireElement<HTMLInputElement>("#command");
 const status = requireElement<HTMLElement>("#status");
 
-const machine = createZMachine();
+let state: Snapshot = INITIAL_STATE;
 const history: string[] = [];
 let historyIndex = 0;
 
@@ -29,13 +29,13 @@ function append(text: string, kind: "output" | "command" | "system" | "error" = 
 
 function render(result: TurnResult): void {
   for (const paragraph of result.output) {
-    append(paragraph);
+    append(paragraph, result.refused ? "error" : "output");
   }
 }
 
 append("Z-MACHINE RESURRECTION — build 0.1.0", "system");
 append("The interpreter owns the world. Type HELP or LOOK.", "system");
-render(machine.execute("look"));
+render(runTurn(state, { kind: "look" }));
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -55,8 +55,17 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
-  render(machine.execute(command));
-  status.textContent = `state: ${machine.state.location} · moves: ${machine.state.moves}`;
+  const parsed = parseCommand(command);
+  if (parsed === null) {
+    const first = command.split(/\s+/)[0] ?? command;
+    append(`I do not know the word "${first}".`, "error");
+    return;
+  }
+
+  const result = runTurn(state, parsed);
+  state = result.state;
+  render(result);
+  status.textContent = `state: ${state.location} · moves: ${state.moves}`;
 });
 
 input.addEventListener("keydown", (event) => {
