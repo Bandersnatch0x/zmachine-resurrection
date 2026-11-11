@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { interpretApiPlugin } from "../vite.api-plugin";
 
 interface Captured {
@@ -84,12 +84,17 @@ describe("dev interpret middleware", () => {
   });
 
   it("answers 503 without a key in the process environment", async () => {
-    const result = await callMiddleware(middlewareOf(), {
-      url: "/api/interpret",
-      method: "POST",
-      body: JSON.stringify({ input: "go north" }),
-    });
-    expect(result.status).toBe(503);
-    expect(JSON.parse(result.body)).toEqual({ error: "model not configured" });
+    vi.stubEnv("LLM_API_KEY", "");
+    try {
+      const result = await callMiddleware(middlewareOf(), {
+        url: "/api/interpret",
+        method: "POST",
+        body: JSON.stringify({ input: "go north" }),
+      });
+      expect(result.status).toBe(503);
+      expect(JSON.parse(result.body)).toEqual({ error: "model not configured" });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
