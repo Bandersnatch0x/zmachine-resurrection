@@ -13,8 +13,8 @@
 | 本地可运行 | `npm install && npm run dev` | `README.md` | 已完成 |
 | 门禁 | `npm run check` 全绿 | `package.json` | 已完成 |
 | 构建 | `npm run build` 通过 | `dist/` | 已完成 |
-| 项目描述 | Devpost 文本,中英各一版,≤500 词 | `docs/submission/project-description.md` | 草稿 |
-| Kiro 使用说明 | 覆盖 8 个提示,逐节作答 | `docs/submission/kiro-usage.md` | 草稿(部分待证据) |
+| 项目描述 | Devpost 文本,中英各一版,≤500 词 | `docs/submission/project-description.md` | 进行中 |
+| Kiro 使用说明 | 覆盖 8 个提示,逐节作答 | `docs/submission/kiro-usage.md` | 进行中(部分待证据) |
 | 演示视频 | 公开 YouTube,≤3 分钟 | 待录制 | 待办 |
 | 标语 | ≤140 字符 | `docs/submission/tagline.txt` | 已完成 |
 | 架构说明 | 前端 / 解释器 / 状态边界 | `README.md` | 已完成 |
