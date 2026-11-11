@@ -8,8 +8,19 @@ import { interpret } from "./frontend/interpret";
 import type { Notice } from "./frontend/interpret";
 import { sourceFromEndpoint } from "./frontend/sources";
 import type { IntentSource } from "./frontend/sources";
+import {
+  LOCALE_STORAGE_KEY,
+  detectLocale,
+  nextLocale,
+  say,
+  t,
+} from "./i18n";
+import type { Locale } from "./i18n";
+import { copy } from "./i18n/copy";
+import { roomTitle } from "./i18n/game";
 import { createSession } from "./session/session";
 import type { Session } from "./session/session";
+import { helpSections } from "./ui/help";
 import {
   commandLine,
   errorLine,
@@ -17,7 +28,6 @@ import {
   noticeLine,
   outputLine,
   renderTranscript,
-  statusText,
   systemLine,
 } from "./ui/render";
 import type { Line } from "./ui/render";
@@ -33,10 +43,22 @@ function requireElement<T extends Element>(selector: string): T {
   return element;
 }
 
+const shell = requireElement<HTMLElement>("#shell");
 const screen = requireElement<HTMLElement>("#screen");
 const form = requireElement<HTMLFormElement>("#prompt-form");
 const input = requireElement<HTMLInputElement>("#command");
+const inputMeasure = requireElement<HTMLElement>("#input-measure");
+const inputCursor = requireElement<HTMLElement>("#input-cursor");
 const status = requireElement<HTMLElement>("#status");
+const title = requireElement<HTMLElement>("#title");
+const subtitle = requireElement<HTMLElement>("#subtitle");
+const goal = requireElement<HTMLElement>("#goal");
+const localeToggle = requireElement<HTMLButtonElement>("#locale-toggle");
+const helpToggle = requireElement<HTMLButtonElement>("#help-toggle");
+const help = requireElement<HTMLElement>("#help");
+const helpTitle = requireElement<HTMLElement>("#help-title");
+const helpBody = requireElement<HTMLElement>("#help-body");
+const helpClose = requireElement<HTMLButtonElement>("#help-close");
 
 function storedEndpoint(): string | null {
   try {
@@ -55,6 +77,22 @@ function storeEndpoint(endpoint: string): boolean {
   }
 }
 
+function storedLocale(): string | null {
+  try {
+    return localStorage.getItem(LOCALE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeLocale(value: Locale): void {
+  try {
+    localStorage.setItem(LOCALE_STORAGE_KEY, value);
+  } catch {
+    // A blocked storage write leaves the in-memory locale in place.
+  }
+}
+
 const pageUrl = location.href;
 const resolution = pickEndpoint(
   [
@@ -66,7 +104,8 @@ const resolution = pickEndpoint(
 );
 const model: IntentSource | null =
   resolution.endpoint === null ? null : sourceFromEndpoint(resolution.endpoint);
-const sourceLabel = model === null ? "rule parser" : model.label;
+
+let locale: Locale = detectLocale(location.search, storedLocale());
 
 const session: Session = createSession();
 const lines: Line[] = [];
@@ -75,8 +114,37 @@ const announced = new Set<string>();
 let historyIndex = 0;
 let queue: Promise<void> = Promise.resolve();
 
+function sourceLabel(): string {
+  return t(locale, model === null ? copy.sourceRules : copy.sourceModel);
+}
+
+function originLabel(origin: string): string {
+  if (origin === "query") {
+    return t(locale, copy.origin.query);
+  }
+  if (origin === "storage") {
+    return t(locale, copy.origin.storage);
+  }
+  if (origin === "env") {
+    return t(locale, copy.origin.env);
+  }
+  return origin;
+}
+
 function push(...added: readonly Line[]): void {
   lines.push(...added);
+}
+
+function updateChrome(): void {
+  const view = session.view();
+  const reached = view.room === "vault";
+  goal.textContent = t(locale, reached ? copy.goalComplete : copy.goalReach);
+  status.textContent = say(locale, copy.status, {
+    room: roomTitle(locale, view.room),
+    moves: view.moves,
+    goal: t(locale, reached ? copy.goalStatusComplete : copy.goalStatusReach),
+    source: sourceLabel(),
+  });
 }
 
 function paint(): void {
@@ -88,9 +156,81 @@ function paint(): void {
     screen.append(element);
   }
   screen.scrollTop = screen.scrollHeight;
+  updateChrome();
+}
 
-  const view = session.view();
-  status.textContent = statusText(view.room, view.moves, sourceLabel);
+function renderHelp(): void {
+  helpTitle.textContent = t(locale, copy.helpTitle);
+  helpBody.replaceChildren();
+  for (const section of helpSections(locale)) {
+    const block = document.createElement("section");
+    block.className = "help__section";
+
+    const heading = document.createElement("h3");
+    heading.className = "help__heading";
+    heading.textContent = section.title;
+    block.append(heading);
+
+    for (const paragraph of section.paragraphs) {
+      const element = document.createElement("p");
+      element.className = "help__text";
+      element.textContent = paragraph;
+      block.append(element);
+    }
+
+    if (section.rows.length > 0) {
+      const table = document.createElement("table");
+      table.className = "help__table";
+      const body = document.createElement("tbody");
+      for (const row of section.rows) {
+        const tr = document.createElement("tr");
+        const term = document.createElement("th");
+        term.scope = "row";
+        term.textContent = row.term;
+        const description = document.createElement("td");
+        description.textContent = row.description;
+        tr.append(term, description);
+        body.append(tr);
+      }
+      table.append(body);
+      block.append(table);
+    }
+
+    helpBody.append(block);
+  }
+}
+
+function applyLocale(): void {
+  document.documentElement.lang = locale === "zh" ? "zh-Hans" : "en";
+  document.title = t(locale, copy.pageTitle);
+  shell.setAttribute("aria-label", t(locale, copy.shellLabel));
+  screen.setAttribute("aria-label", t(locale, copy.transcriptLabel));
+  input.setAttribute("aria-label", t(locale, copy.commandLabel));
+  title.textContent = t(locale, copy.title);
+  subtitle.textContent = t(locale, copy.subtitle);
+  localeToggle.textContent = t(locale, copy.localeButton);
+  localeToggle.lang = nextLocale(locale);
+  localeToggle.setAttribute("aria-label", t(locale, copy.localeSwitch));
+  helpToggle.setAttribute("aria-label", t(locale, copy.helpButton));
+  help.setAttribute("aria-label", t(locale, copy.helpTitle));
+  helpClose.textContent = t(locale, copy.helpClose);
+  renderHelp();
+}
+
+function setHelpOpen(open: boolean): void {
+  help.hidden = !open;
+  helpToggle.setAttribute("aria-expanded", String(open));
+  if (!open) {
+    input.focus();
+    placeCursor();
+  }
+}
+
+function placeCursor(): void {
+  const position = input.selectionStart ?? input.value.length;
+  inputMeasure.textContent = input.value.slice(0, position);
+  const width = inputMeasure.getBoundingClientRect().width;
+  inputCursor.style.left = `${Math.max(0, width - input.scrollLeft)}px`;
 }
 
 function showNotices(notices: readonly Notice[]): void {
@@ -101,7 +241,7 @@ function showNotices(notices: readonly Notice[]): void {
       }
       announced.add(notice.text);
     }
-    push(notice.kind === "claim" ? noticeLine(notice.text) : errorLine(notice.text));
+    push(notice.kind === "refusal" ? errorLine(notice.text) : noticeLine(notice.text));
   }
 }
 
@@ -114,7 +254,45 @@ function showTurns(turns: readonly { output: readonly string[]; refused: boolean
 }
 
 function showRoom(): void {
-  showTurns([{ output: session.describe(), refused: false }]);
+  showTurns([{ output: session.describe(locale), refused: false }]);
+}
+
+function pushIntro(): void {
+  push(
+    systemLine(t(locale, copy.pitch)),
+    systemLine(t(locale, copy.introGoal)),
+    systemLine(t(locale, copy.introHelp)),
+  );
+}
+
+function rebuildTranscript(): void {
+  lines.length = 0;
+  announced.clear();
+  pushIntro();
+  if (resolution.invalid !== null) {
+    push(errorLine(say(locale, copy.meta.endpointIgnored, { value: resolution.invalid })));
+  }
+
+  const turns = session.replayAll(locale);
+  if (turns.length === 0) {
+    showRoom();
+    return;
+  }
+
+  let turnIndex = 0;
+  for (const entry of session.log) {
+    push(commandLine(entry.input));
+    for (let index = 0; index < entry.commands.length; index += 1) {
+      const turn = turns[turnIndex];
+      turnIndex += 1;
+      if (turn === undefined) {
+        continue;
+      }
+      for (const text of turn.output) {
+        push(turn.refused ? errorLine(text) : outputLine(text));
+      }
+    }
+  }
 }
 
 function runMetaCommand(command: string): boolean {
@@ -123,19 +301,12 @@ function runMetaCommand(command: string): boolean {
   switch (verb) {
     case "help":
     case "?": {
-      push(metaLine("HELP"));
-      push(
-        systemLine(
-          "Typed commands: LOOK, INVENTORY, WAIT, NORTH/SOUTH/EAST/WEST, TAKE <thing>, DROP <thing>, LIGHT LAMP, EXTINGUISH LAMP, OPEN <thing>.",
-        ),
-        systemLine('Natural language works too: "take the key and go north".'),
-        systemLine("Meta: SAVE, RESTORE, REPLAY, ENDPOINT [url]. These are handled before the front end."),
-      );
+      setHelpOpen(help.hidden);
       return true;
     }
     case "save": {
       session.save();
-      push(metaLine(`SAVE · checkpoint at input ${session.view().logLength}`));
+      push(metaLine(say(locale, copy.meta.save, { at: session.view().logLength })));
       return true;
     }
     case "restore": {
@@ -145,8 +316,10 @@ function runMetaCommand(command: string): boolean {
       push(
         metaLine(
           !before.hasCheckpoint
-            ? "RESTORE · no checkpoint saved yet"
-            : `RESTORE · truncated ${before.logLength - after.logLength} input(s) back to the checkpoint`,
+            ? t(locale, copy.meta.restoreNone)
+            : say(locale, copy.meta.restoreTruncated, {
+                count: before.logLength - after.logLength,
+              }),
         ),
       );
       showTurns(result.turns);
@@ -159,29 +332,32 @@ function runMetaCommand(command: string): boolean {
         push(
           metaLine(
             resolution.endpoint === null
-              ? "ENDPOINT · none (rule parser)"
-              : `ENDPOINT · ${resolution.endpoint} (${resolution.origin})`,
+              ? t(locale, copy.meta.endpointNone)
+              : say(locale, copy.meta.endpointConfigured, {
+                  endpoint: resolution.endpoint,
+                  origin: originLabel(resolution.origin),
+                }),
           ),
         );
         return true;
       }
       const endpoint = httpUrl(argument, pageUrl);
       if (endpoint === null) {
-        push(errorLine(`ENDPOINT · not an http(s) URL: ${argument}`));
+        push(errorLine(say(locale, copy.meta.endpointInvalid, { value: argument })));
         return true;
       }
       if (!storeEndpoint(endpoint)) {
-        push(errorLine("ENDPOINT · localStorage is unavailable; the value was not stored"));
+        push(errorLine(t(locale, copy.meta.endpointStoreFailed)));
         return true;
       }
-      push(metaLine(`ENDPOINT · stored ${endpoint}; reloading`));
+      push(metaLine(say(locale, copy.meta.endpointStored, { endpoint })));
       paint();
       location.reload();
       return true;
     }
     case "replay": {
-      const turns = session.replayAll();
-      push(metaLine(`REPLAY · ${session.log.length} logged input(s) from the start snapshot`));
+      const turns = session.replayAll(locale);
+      push(metaLine(say(locale, copy.meta.replay, { count: session.log.length })));
       showTurns(turns);
       return true;
     }
@@ -195,7 +371,7 @@ async function submit(raw: string): Promise<void> {
     await deliver(raw);
   } catch (error: unknown) {
     const detail = error instanceof Error ? error.message : "unknown error";
-    push(errorLine(`submission failed: ${detail}`));
+    push(errorLine(say(locale, copy.meta.submissionFailed, { detail })));
     paint();
   }
 }
@@ -213,7 +389,7 @@ async function deliver(raw: string): Promise<void> {
     return;
   }
 
-  const outcome = await interpret(command, model);
+  const outcome = await interpret(command, model, locale);
   if (!outcome.ok) {
     showNotices(outcome.notices);
     paint();
@@ -221,29 +397,37 @@ async function deliver(raw: string): Promise<void> {
   }
 
   showNotices(outcome.notices);
-  const result = session.commit({ input: command, commands: outcome.intent.commands });
+  const result = session.commit(
+    { input: command, commands: outcome.intent.commands },
+    locale,
+  );
   showTurns(result.turns);
   paint();
 }
 
-push(
-  systemLine("Z-MACHINE RESURRECTION — build 0.1.0"),
-  systemLine(`The interpreter owns the world. Input: ${sourceLabel}. Type HELP.`),
-);
-if (resolution.invalid !== null) {
-  push(
-    errorLine(
-      `interpret endpoint ignored (not an http(s) URL): ${resolution.invalid}; using the rule parser`,
-    ),
-  );
-}
-showRoom();
+applyLocale();
+rebuildTranscript();
 paint();
+input.focus();
+placeCursor();
+
+for (const eventName of [
+  "input",
+  "keyup",
+  "click",
+  "select",
+  "focus",
+  "scroll",
+  "compositionend",
+]) {
+  input.addEventListener(eventName, placeCursor);
+}
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   const raw = input.value;
   input.value = "";
+  placeCursor();
   if (raw.trim() !== "") {
     history.push(raw);
     historyIndex = history.length;
@@ -264,4 +448,30 @@ input.addEventListener("keydown", (event) => {
       ? Math.max(0, historyIndex - 1)
       : Math.min(history.length, historyIndex + 1);
   input.value = history[historyIndex] ?? "";
+  placeCursor();
+});
+
+localeToggle.addEventListener("click", () => {
+  locale = nextLocale(locale);
+  storeLocale(locale);
+  applyLocale();
+  rebuildTranscript();
+  paint();
+  input.focus();
+  placeCursor();
+});
+
+helpToggle.addEventListener("click", () => {
+  setHelpOpen(help.hidden);
+});
+
+helpClose.addEventListener("click", () => {
+  setHelpOpen(false);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !help.hidden) {
+    event.preventDefault();
+    setHelpOpen(false);
+  }
 });

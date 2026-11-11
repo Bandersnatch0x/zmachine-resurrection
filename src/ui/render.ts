@@ -29,10 +29,6 @@ export function metaLine(text: string): Line {
   return { kind: "meta", text };
 }
 
-export function statusText(room: string, moves: number, source: string): string {
-  return `state: ${room} · moves: ${moves} · input: ${source}`;
-}
-
 export function renderTranscript(lines: readonly Line[], limit: number): readonly Line[] {
   return lines.length <= limit ? lines : lines.slice(lines.length - limit);
 }

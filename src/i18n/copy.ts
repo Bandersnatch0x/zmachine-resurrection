@@ -3,6 +3,9 @@ import { text } from "./index";
 export const copy = {
   pageTitle: text("Z-Machine Resurrection", "Z-Machine 复活"),
   title: text("Z-MACHINE // RESURRECTION", "Z-MACHINE // 复活"),
+  shellLabel: text("Z-machine terminal", "Z-machine 终端"),
+  transcriptLabel: text("Transcript", "记录"),
+  commandLabel: text("Command", "命令"),
   subtitle: text(
     "A text adventure where the model cannot lie about the world.",
     "模型负责说话，解释器负责事实。",

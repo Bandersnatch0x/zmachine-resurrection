@@ -1,3 +1,6 @@
+import { say } from "../i18n";
+import type { Locale } from "../i18n";
+import { copy } from "../i18n/copy";
 import { parseCommand } from "../zmachine/parse";
 import type { Command } from "../zmachine/protocol";
 import { compileIntent } from "./intent";
@@ -34,10 +37,10 @@ function rejected(notices: readonly Notice[]): InterpretOutcome {
   return { ok: false, notices };
 }
 
-function claimsToNotices(intent: Intent): readonly Notice[] {
+function claimsToNotices(intent: Intent, locale: Locale): readonly Notice[] {
   return intent.claims.map((claim) => ({
     kind: "claim" as const,
-    text: `ignored model claim: ${claim}`,
+    text: say(locale, copy.notices.ignoredClaim, { claim }),
   }));
 }
 
@@ -48,6 +51,7 @@ function claimsToNotices(intent: Intent): readonly Notice[] {
 export async function interpret(
   raw: string,
   model: IntentSource | null,
+  locale: Locale = "en",
 ): Promise<InterpretOutcome> {
   const typed: Command | null = parseCommand(raw);
   if (typed !== null) {
@@ -56,32 +60,35 @@ export async function interpret(
 
   const notices: Notice[] = [];
   if (model === null) {
-    notices.push({ kind: "fallback", text: "no model configured; using the rule parser" });
+    notices.push({ kind: "fallback", text: say(locale, copy.notices.noModel) });
   } else {
     try {
       const payload = await model.interpret(raw);
       const compiled = compileIntent(payload);
       if (compiled.ok && compiled.intent.commands.length > 0) {
-        return accepted(compiled.intent, "model", claimsToNotices(compiled.intent));
+        return accepted(compiled.intent, "model", claimsToNotices(compiled.intent, locale));
       }
       notices.push({
         kind: "fallback",
         text: compiled.ok
-          ? "the model returned no command; using the rule parser"
-          : `the model intent was rejected (${compiled.reason}); using the rule parser`,
+          ? say(locale, copy.notices.noCommand)
+          : say(locale, copy.notices.rejected, { reason: compiled.reason }),
       });
     } catch (error: unknown) {
       const detail = error instanceof Error ? error.message : "unknown error";
       notices.push({
         kind: "fallback",
-        text: `the model is unavailable (${detail}); using the rule parser`,
+        text: say(locale, copy.notices.unavailable, { detail }),
       });
     }
   }
 
   const commands = parseRuleIntent(raw);
   if (commands.length === 0) {
-    notices.push({ kind: "refusal", text: `I cannot turn "${raw.trim()}" into a command.` });
+    notices.push({
+      kind: "refusal",
+      text: say(locale, copy.notices.unparsed, { raw: raw.trim() }),
+    });
     return rejected(notices);
   }
 
