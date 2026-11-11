@@ -30,6 +30,10 @@ function trace(commands: readonly Command[]): Snapshot {
   return state;
 }
 
+function play(commands: readonly Command[], start: Snapshot = INITIAL_STATE): Snapshot {
+  return commands.reduce((state, command) => runTurn(state, command).state, start);
+}
+
 function runText(inputs: readonly string[]): { state: Snapshot; output: readonly string[] } {
   let state: Snapshot = INITIAL_STATE;
   const output: string[] = [];
@@ -131,5 +135,122 @@ describe("static world content", () => {
     expect(WORLD.rooms.cell.dark).toBe(false);
     expect(WORLD.rooms.corridor.dark).toBe(true);
     expect(WORLD.rooms.vault.dark).toBe(false);
+  });
+});
+
+const DARK_CORRIDOR = play([
+  { kind: "go", direction: "north" },
+  { kind: "lamp", lit: false },
+]);
+
+describe("items, hatch, and darkness", () => {
+  it("plays the key-and-hatch walkthrough into the vault and back", () => {
+    const commands: readonly Command[] = [
+      { kind: "look" },
+      { kind: "take", noun: "key" },
+      { kind: "go", direction: "north" },
+      { kind: "open", noun: "hatch" },
+      { kind: "go", direction: "east" },
+      { kind: "look" },
+      { kind: "go", direction: "west" },
+      { kind: "go", direction: "south" },
+      { kind: "inventory" },
+    ];
+
+    expect(play(commands.slice(0, 5)).location).toBe("vault");
+    const final = play(commands);
+    expect(final.location).toBe("cell");
+    expect(final.moves).toBe(6);
+    expect(final.doors.hatch).toBe("open");
+    expect(final.items.key.placement).toEqual({ kind: "carried" });
+  });
+
+  it("lights and extinguishes the lamp, and darkness follows the light", () => {
+    const litCorridor = play([{ kind: "go", direction: "north" }]);
+    expect(runTurn(litCorridor, { kind: "look" }).output.join(" ")).toContain("Corridor");
+
+    const dark = runTurn(litCorridor, { kind: "lamp", lit: false }).state;
+    const look = runTurn(dark, { kind: "look" });
+    expect(look.refused).toBe(false);
+    expect(look.state).toBe(dark);
+    expect(look.output.join(" ")).toContain("dark");
+
+    expect(runTurn(dark, { kind: "inventory" }).refused).toBe(false);
+    expect(runTurn(dark, { kind: "wait" }).refused).toBe(false);
+
+    const relit = runTurn(dark, { kind: "lamp", lit: true });
+    expect(relit.refused).toBe(false);
+    expect(runTurn(relit.state, { kind: "look" }).output.join(" ")).toContain("Corridor");
+  });
+
+  it("refuses every world-changing command in a dark room", () => {
+    const darkCommand: fc.Arbitrary<Command> = fc.oneof(
+      fc
+        .constantFrom<Direction>("north", "south", "east", "west")
+        .map((direction): Command => ({ kind: "go", direction })),
+      fc.constantFrom("key", "lamp", "notebook", "hatch").map((noun): Command => ({ kind: "take", noun })),
+      fc.constantFrom("key", "lamp", "notebook", "hatch").map((noun): Command => ({ kind: "drop", noun })),
+      fc.constantFrom("key", "lamp", "notebook", "hatch").map((noun): Command => ({ kind: "open", noun })),
+    );
+
+    fc.assert(
+      fc.property(darkCommand, (command) => {
+        const result = runTurn(DARK_CORRIDOR, command);
+        expect(result.refused).toBe(true);
+        expect(result.state).toBe(DARK_CORRIDOR);
+        expect(result.state.moves).toBe(2);
+      }),
+    );
+  });
+
+  it("refuses to open the hatch without the key, changing nothing", () => {
+    const corridor = play([{ kind: "go", direction: "north" }]);
+    const result = runTurn(corridor, { kind: "open", noun: "hatch" });
+    expect(result.refused).toBe(true);
+    expect(result.state).toBe(corridor);
+    expect(result.state.doors.hatch).toBe("locked");
+    expect(result.state.moves).toBe(corridor.moves);
+  });
+
+  it("only opens the hatch while the key is carried", () => {
+    fc.assert(
+      fc.property(commandSequence, (commands) => {
+        let state: Snapshot = INITIAL_STATE;
+        for (const command of commands) {
+          const result = runTurn(state, command);
+          const opened =
+            command.kind === "open" &&
+            command.noun === "hatch" &&
+            state.doors.hatch === "locked" &&
+            result.state.doors.hatch === "open";
+          if (opened) {
+            expect(state.items.key.placement.kind).toBe("carried");
+          }
+          state = result.state;
+        }
+      }),
+    );
+  });
+
+  it("never reaches the vault through a locked hatch", () => {
+    fc.assert(
+      fc.property(commandSequence, (commands) => {
+        const finalState = trace(commands);
+        if (finalState.location === "vault") {
+          expect(finalState.doors.hatch).toBe("open");
+        }
+      }),
+    );
+  });
+
+  it("treats accepted no-ops as immobile and refusal-inert", () => {
+    const lightAgain = runTurn(INITIAL_STATE, { kind: "lamp", lit: true });
+    expect(lightAgain.refused).toBe(true);
+    expect(lightAgain.state).toBe(INITIAL_STATE);
+
+    const takeCarried = runTurn(INITIAL_STATE, { kind: "take", noun: "notebook" });
+    expect(takeCarried.refused).toBe(true);
+    expect(takeCarried.state).toBe(INITIAL_STATE);
+    expect(takeCarried.state.moves).toBe(0);
   });
 });
