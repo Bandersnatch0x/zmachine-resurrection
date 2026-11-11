@@ -107,11 +107,13 @@ describe("session log and checkpoint", () => {
   it("reports whether a checkpoint exists, including one saved at input 0", () => {
     const session = createSession();
     expect(session.view().hasCheckpoint).toBe(false);
-    expect(session.view().checkpointLength).toBe(0);
 
     session.save();
     expect(session.view().hasCheckpoint).toBe(true);
-    expect(session.view().checkpointLength).toBe(0);
+    expect(session.view().logLength).toBe(0);
+
+    session.restore();
+    expect(session.state).toBe(INITIAL_STATE);
   });
 
   it("replays from the start snapshot it was created with", () => {

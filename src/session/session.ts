@@ -23,7 +23,6 @@ export interface SessionView {
   readonly room: string;
   readonly moves: number;
   readonly logLength: number;
-  readonly checkpointLength: number;
   readonly hasCheckpoint: boolean;
 }
 
@@ -71,7 +70,6 @@ export function createSession(start: Snapshot = INITIAL_STATE): Session {
         room: observe(state).room.id,
         moves: state.moves,
         logLength: log.length,
-        checkpointLength: checkpoint?.at ?? 0,
         hasCheckpoint: checkpoint !== null,
       };
     },
