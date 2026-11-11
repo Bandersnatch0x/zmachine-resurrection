@@ -1,4 +1,4 @@
-import { isDark, observe } from "./observe";
+import { isDark, isDarkIn, observe } from "./observe";
 import { normalizeNoun } from "./protocol";
 import type { Command, Direction } from "./protocol";
 import type {
@@ -63,6 +63,9 @@ function go(state: Snapshot, direction: Direction): TurnResult {
   }
   if (exit.kind === "door" && state.doors[exit.door] !== "open") {
     return refused(state, `The ${WORLD.doors[exit.door].name} is locked.`);
+  }
+  if (isDarkIn(state, exit.room)) {
+    return refused(state, "It is too dark to go there.");
   }
   const next: WorldState = {
     ...state,

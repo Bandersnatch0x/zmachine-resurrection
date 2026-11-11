@@ -184,6 +184,29 @@ describe("items, hatch, and darkness", () => {
     expect(runTurn(relit.state, { kind: "look" }).output.join(" ")).toContain("Corridor");
   });
 
+  it("recovers after dropping a lit lamp in a dark room", () => {
+    const corridor = play([{ kind: "go", direction: "north" }]);
+    const dropped = runTurn(corridor, { kind: "drop", noun: "lamp" });
+    expect(dropped.refused).toBe(false);
+    expect(dropped.state.items.lamp.placement).toEqual({ kind: "room", room: "corridor" });
+
+    const look = runTurn(dropped.state, { kind: "look" });
+    expect(look.refused).toBe(false);
+    expect(look.output.join(" ")).toContain("Corridor");
+
+    const taken = runTurn(dropped.state, { kind: "take", noun: "lamp" });
+    expect(taken.refused).toBe(false);
+    expect(taken.state.items.lamp.placement).toEqual({ kind: "carried" });
+  });
+
+  it("refuses to walk into a dark room with no light", () => {
+    const cellDark = play([{ kind: "lamp", lit: false }]);
+    const result = runTurn(cellDark, { kind: "go", direction: "north" });
+    expect(result.refused).toBe(true);
+    expect(result.state).toBe(cellDark);
+    expect(result.state.moves).toBe(cellDark.moves);
+  });
+
   it("refuses every world-changing command in a dark room", () => {
     const darkCommand: fc.Arbitrary<Command> = fc.oneof(
       fc

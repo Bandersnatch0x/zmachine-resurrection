@@ -1,5 +1,5 @@
 export { createZMachine, runTurn } from "./interpreter";
-export { isDark, observe } from "./observe";
+export { isDark, isDarkIn, observe } from "./observe";
 export { hasClauseSeparator, parseCommand } from "./parse";
 export {
   DIRECTIONS,

@@ -17,8 +17,20 @@ function carriedLampLit(state: WorldState): boolean {
   return lamp.placement.kind === "carried" && lamp.lit;
 }
 
+function roomLampLit(state: WorldState, room: RoomId): boolean {
+  const lamp = state.items.lamp;
+  if (lamp.kind !== "lamp") {
+    return false;
+  }
+  return lamp.placement.kind === "room" && lamp.placement.room === room && lamp.lit;
+}
+
+export function isDarkIn(state: WorldState, room: RoomId): boolean {
+  return WORLD.rooms[room].dark && !carriedLampLit(state) && !roomLampLit(state, room);
+}
+
 export function isDark(state: WorldState): boolean {
-  return WORLD.rooms[state.location].dark && !carriedLampLit(state);
+  return isDarkIn(state, state.location);
 }
 
 export function observe(state: WorldState): WorldView {
