@@ -1,7 +1,8 @@
+import type { Locale } from "../i18n";
 import { observe } from "../zmachine/observe";
 import { runTurn } from "../zmachine/interpreter";
 import type { Command } from "../zmachine/protocol";
-import type { Snapshot } from "../zmachine/types";
+import type { RoomId, Snapshot } from "../zmachine/types";
 import { INITIAL_STATE } from "../zmachine/world";
 
 export interface SessionEntry {
@@ -20,7 +21,7 @@ export interface CommitResult {
 }
 
 export interface SessionView {
-  readonly room: string;
+  readonly room: RoomId;
   readonly moves: number;
   readonly logLength: number;
   readonly hasCheckpoint: boolean;
@@ -30,18 +31,22 @@ export interface Session {
   readonly state: Snapshot;
   readonly log: readonly SessionEntry[];
   view(): SessionView;
-  describe(): readonly string[];
-  commit(entry: SessionEntry): CommitResult;
+  describe(locale?: Locale): readonly string[];
+  commit(entry: SessionEntry, locale?: Locale): CommitResult;
   save(): void;
   restore(): CommitResult;
-  replayAll(): readonly TurnSummary[];
+  replayAll(locale?: Locale): readonly TurnSummary[];
 }
 
-function run(state: Snapshot, commands: readonly Command[]): CommitResult {
+function run(
+  state: Snapshot,
+  commands: readonly Command[],
+  locale: Locale,
+): CommitResult {
   let current = state;
   const turns: TurnSummary[] = [];
   for (const command of commands) {
-    const result = runTurn(current, command);
+    const result = runTurn(current, command, locale);
     current = result.state;
     turns.push({ output: result.output, refused: result.refused });
   }
@@ -73,12 +78,12 @@ export function createSession(start: Snapshot = INITIAL_STATE): Session {
         hasCheckpoint: checkpoint !== null,
       };
     },
-    describe(): readonly string[] {
-      return runTurn(state, { kind: "look" }).output;
+    describe(locale: Locale = "en"): readonly string[] {
+      return runTurn(state, { kind: "look" }, locale).output;
     },
-    commit(entry: SessionEntry): CommitResult {
+    commit(entry: SessionEntry, locale: Locale = "en"): CommitResult {
       log = [...log, entry];
-      const result = run(state, entry.commands);
+      const result = run(state, entry.commands, locale);
       state = result.state;
       return result;
     },
@@ -93,11 +98,11 @@ export function createSession(start: Snapshot = INITIAL_STATE): Session {
       state = checkpoint.state;
       return { state, turns: [] };
     },
-    replayAll(): readonly TurnSummary[] {
+    replayAll(locale: Locale = "en"): readonly TurnSummary[] {
       let current = origin;
       const turns: TurnSummary[] = [];
       for (const entry of log) {
-        const result = run(current, entry.commands);
+        const result = run(current, entry.commands, locale);
         current = result.state;
         turns.push(...result.turns);
       }

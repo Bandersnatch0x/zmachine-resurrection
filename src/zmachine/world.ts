@@ -1,3 +1,5 @@
+import type { Text } from "../i18n";
+import { gameText } from "../i18n/game";
 import type { Direction } from "./protocol";
 import type {
   DoorId,
@@ -21,19 +23,19 @@ export interface RoomExitThroughDoor {
 export type RoomExit = RoomExitToRoom | RoomExitThroughDoor;
 
 export interface RoomDef {
-  readonly title: string;
-  readonly description: string;
+  readonly title: Text;
+  readonly description: Text;
   readonly dark: boolean;
   readonly exits: Readonly<Partial<Record<Direction, RoomExit>>>;
 }
 
 export interface ItemDef {
-  readonly name: string;
+  readonly name: Text;
   readonly aliases: readonly string[];
 }
 
 export interface DoorDef {
-  readonly name: string;
+  readonly name: Text;
   readonly aliases: readonly string[];
   readonly key: ItemId;
 }
@@ -51,17 +53,16 @@ export interface WorldDef {
 
 const rooms: Readonly<Record<RoomId, RoomDef>> = {
   cell: {
-    title: "Cell",
-    description: "Cell. Cold stone, a narrow cot, and a barred door north.",
+    title: gameText.rooms.cell.title,
+    description: gameText.rooms.cell.description,
     dark: false,
     exits: {
       north: { kind: "room", room: "corridor" },
     },
   },
   corridor: {
-    title: "Corridor",
-    description:
-      "Corridor. Dust and a dead fluorescent. The cell lies south, and a hatch is set in the east wall.",
+    title: gameText.rooms.corridor.title,
+    description: gameText.rooms.corridor.description,
     dark: true,
     exits: {
       south: { kind: "room", room: "cell" },
@@ -69,8 +70,8 @@ const rooms: Readonly<Record<RoomId, RoomDef>> = {
     },
   },
   vault: {
-    title: "Vault",
-    description: "Vault. Shelves of dead terminals line the walls. A hatch opens west.",
+    title: gameText.rooms.vault.title,
+    description: gameText.rooms.vault.description,
     dark: false,
     exits: {
       west: { kind: "door", door: "hatch", room: "corridor" },
@@ -79,13 +80,13 @@ const rooms: Readonly<Record<RoomId, RoomDef>> = {
 };
 
 const items: Readonly<Record<ItemId, ItemDef>> = {
-  lamp: { name: "brass lamp", aliases: ["lamp", "brass lamp"] },
-  key: { name: "brass key", aliases: ["key", "brass key"] },
-  notebook: { name: "notebook", aliases: ["notebook", "book", "journal"] },
+  lamp: { name: gameText.items.lamp, aliases: ["lamp", "brass lamp"] },
+  key: { name: gameText.items.key, aliases: ["key", "brass key"] },
+  notebook: { name: gameText.items.notebook, aliases: ["notebook", "book", "journal"] },
 };
 
 const doors: Readonly<Record<DoorId, DoorDef>> = {
-  hatch: { name: "hatch", aliases: ["hatch", "door", "trapdoor"], key: "key" },
+  hatch: { name: gameText.doors.hatch, aliases: ["hatch", "door", "trapdoor"], key: "key" },
 };
 
 function buildNounIndex(): Readonly<Record<string, NounRef>> {

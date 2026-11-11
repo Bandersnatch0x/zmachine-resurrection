@@ -126,8 +126,10 @@ describe("static world content", () => {
   it("keeps every exit and key pointing at a real entity", () => {
     for (const roomId of Object.keys(WORLD.rooms) as RoomId[]) {
       const room = WORLD.rooms[roomId];
-      expect(room.title.length).toBeGreaterThan(0);
-      expect(room.description.length).toBeGreaterThan(0);
+      expect(room.title.en.length).toBeGreaterThan(0);
+      expect(room.title.zh.length).toBeGreaterThan(0);
+      expect(room.description.en.length).toBeGreaterThan(0);
+      expect(room.description.zh.length).toBeGreaterThan(0);
       for (const direction of Object.keys(room.exits) as Direction[]) {
         const exit = room.exits[direction];
         if (exit === undefined) {

@@ -1,3 +1,6 @@
+import { say, t } from "../i18n";
+import type { Locale } from "../i18n";
+import { gameText } from "../i18n/game";
 import { isDark, isDarkIn, observe } from "./observe";
 import { normalizeNoun } from "./protocol";
 import type { Command, Direction } from "./protocol";
@@ -25,75 +28,81 @@ function resolveNoun(raw: string): NounRef | null {
   return WORLD.nouns[noun] ?? null;
 }
 
-function displayNoun(raw: string): string {
-  return normalizeNoun(raw).replace(/^(?:the|a|an)\s+/, "") || "thing";
+function displayNoun(raw: string, locale: Locale): string {
+  const noun = normalizeNoun(raw).replace(/^(?:the|a|an)\s+/, "");
+  return noun || t(locale, gameText.messages.thingFallback);
 }
 
 function carrying(state: WorldState, id: ItemId): boolean {
   return state.items[id].placement.kind === "carried";
 }
 
-function roomText(state: WorldState): string {
+function roomText(state: WorldState, locale: Locale): string {
   if (isDark(state)) {
-    return "It is dark. You cannot see anything.";
+    return t(locale, gameText.messages.dark);
   }
-  const view = observe(state);
-  const description = WORLD.rooms[state.location].description;
+  const view = observe(state, locale);
+  const description = t(locale, WORLD.rooms[state.location].description);
   if (view.visibleItems.length === 0) {
     return description;
   }
-  return `${description} You see: ${view.visibleItems.join(", ")}.`;
+  const items = view.visibleItems.join(t(locale, gameText.messages.listSeparator));
+  return `${description} ${say(locale, gameText.messages.seeItems, { items })}`;
 }
 
-function inventoryText(state: WorldState): string {
-  const carried = observe(state).carriedItems;
+function inventoryText(state: WorldState, locale: Locale): string {
+  const carried = observe(state, locale).carriedItems;
   if (carried.length === 0) {
-    return "You are empty-handed.";
+    return t(locale, gameText.messages.emptyHanded);
   }
-  return `You are carrying: ${carried.join(", ")}.`;
+  const items = carried.join(t(locale, gameText.messages.listSeparator));
+  return say(locale, gameText.messages.carrying, { items });
 }
 
-function go(state: Snapshot, direction: Direction): TurnResult {
+function go(state: Snapshot, direction: Direction, locale: Locale): TurnResult {
   if (isDark(state)) {
-    return refused(state, "It is too dark to move.");
+    return refused(state, t(locale, gameText.messages.tooDarkToMove));
   }
   const exit = WORLD.rooms[state.location].exits[direction];
   if (exit === undefined) {
-    return refused(state, "You cannot go that way.");
+    return refused(state, t(locale, gameText.messages.cannotGoThatWay));
   }
   if (exit.kind === "door" && state.doors[exit.door] !== "open") {
-    return refused(state, `The ${WORLD.doors[exit.door].name} is locked.`);
+    const door = t(locale, WORLD.doors[exit.door].name);
+    return refused(state, say(locale, gameText.messages.doorIsLocked, { door }));
   }
   if (isDarkIn(state, exit.room)) {
-    return refused(state, "It is too dark to go there.");
+    return refused(state, t(locale, gameText.messages.tooDarkToGoThere));
   }
   const next: WorldState = {
     ...state,
     location: exit.room,
     moves: state.moves + 1,
   };
-  return committed(next, [roomText(next)]);
+  return committed(next, [roomText(next, locale)]);
 }
 
-function take(state: Snapshot, rawNoun: string): TurnResult {
+function take(state: Snapshot, rawNoun: string, locale: Locale): TurnResult {
   if (isDark(state)) {
-    return refused(state, "It is too dark to find anything.");
+    return refused(state, t(locale, gameText.messages.tooDarkToFindAnything));
   }
   const noun = resolveNoun(rawNoun);
   if (noun === null) {
-    return refused(state, `You see no ${displayNoun(rawNoun)} here.`);
+    const thing = displayNoun(rawNoun, locale);
+    return refused(state, say(locale, gameText.messages.seeNoThingHere, { thing }));
   }
   if (noun.kind === "door") {
-    return refused(state, `The ${WORLD.doors[noun.id].name} cannot be picked up.`);
+    const door = t(locale, WORLD.doors[noun.id].name);
+    return refused(state, say(locale, gameText.messages.doorCannotBePickedUp, { door }));
   }
 
   const item = state.items[noun.id];
-  const name = WORLD.items[noun.id].name;
+  const name = t(locale, WORLD.items[noun.id].name);
   if (item.placement.kind === "carried") {
-    return refused(state, `You are already carrying the ${name}.`);
+    return refused(state, say(locale, gameText.messages.alreadyCarrying, { item: name }));
   }
   if (item.placement.room !== state.location) {
-    return refused(state, `You see no ${name} here.`);
+    return refused(state, say(locale, gameText.messages.seeNoThingHere, { thing: name }));
   }
 
   const next: WorldState = {
@@ -104,25 +113,27 @@ function take(state: Snapshot, rawNoun: string): TurnResult {
       [noun.id]: { ...item, placement: { kind: "carried" } },
     },
   };
-  return committed(next, [`Taken: ${name}.`]);
+  return committed(next, [say(locale, gameText.messages.taken, { item: name })]);
 }
 
-function drop(state: Snapshot, rawNoun: string): TurnResult {
+function drop(state: Snapshot, rawNoun: string, locale: Locale): TurnResult {
   if (isDark(state)) {
-    return refused(state, "It is too dark to put anything down safely.");
+    return refused(state, t(locale, gameText.messages.tooDarkToPutDown));
   }
   const noun = resolveNoun(rawNoun);
   if (noun === null) {
-    return refused(state, `You are not carrying a ${displayNoun(rawNoun)}.`);
+    const thing = displayNoun(rawNoun, locale);
+    return refused(state, say(locale, gameText.messages.notCarryingThing, { thing }));
   }
   if (noun.kind === "door") {
-    return refused(state, `The ${WORLD.doors[noun.id].name} is fixed in place.`);
+    const door = t(locale, WORLD.doors[noun.id].name);
+    return refused(state, say(locale, gameText.messages.doorFixed, { door }));
   }
 
   const item = state.items[noun.id];
-  const name = WORLD.items[noun.id].name;
+  const name = t(locale, WORLD.items[noun.id].name);
   if (item.placement.kind !== "carried") {
-    return refused(state, `You are not carrying the ${name}.`);
+    return refused(state, say(locale, gameText.messages.notCarryingItem, { item: name }));
   }
 
   const next: WorldState = {
@@ -136,19 +147,22 @@ function drop(state: Snapshot, rawNoun: string): TurnResult {
       },
     },
   };
-  return committed(next, [`Dropped: ${name}.`]);
+  return committed(next, [say(locale, gameText.messages.dropped, { item: name })]);
 }
 
-function lamp(state: Snapshot, lit: boolean): TurnResult {
+function lamp(state: Snapshot, lit: boolean, locale: Locale): TurnResult {
   const lampItem = state.items.lamp;
   if (lampItem.kind !== "lamp") {
-    return refused(state, "There is no lamp.");
+    return refused(state, t(locale, gameText.messages.noLamp));
   }
   if (lampItem.placement.kind !== "carried") {
-    return refused(state, "You are not carrying the lamp.");
+    return refused(state, t(locale, gameText.messages.notCarryingLamp));
   }
   if (lampItem.lit === lit) {
-    return refused(state, lit ? "The lamp is already lit." : "The lamp is already out.");
+    return refused(
+      state,
+      t(locale, lit ? gameText.messages.lampAlreadyLit : gameText.messages.lampAlreadyOut),
+    );
   }
 
   const next: WorldState = {
@@ -159,7 +173,9 @@ function lamp(state: Snapshot, lit: boolean): TurnResult {
       lamp: { ...lampItem, lit },
     },
   };
-  return committed(next, [lit ? "The lamp is lit." : "The lamp goes dark."]);
+  return committed(next, [
+    t(locale, lit ? gameText.messages.lampLit : gameText.messages.lampOut),
+  ]);
 }
 
 function doorIsHere(state: WorldState, door: DoorId): boolean {
@@ -173,27 +189,29 @@ function doorIsHere(state: WorldState, door: DoorId): boolean {
   return false;
 }
 
-function open(state: Snapshot, rawNoun: string): TurnResult {
+function open(state: Snapshot, rawNoun: string, locale: Locale): TurnResult {
   if (isDark(state)) {
-    return refused(state, "It is too dark to find the latch.");
+    return refused(state, t(locale, gameText.messages.tooDarkToFindLatch));
   }
   const noun = resolveNoun(rawNoun);
   if (noun === null) {
-    return refused(state, `There is no ${displayNoun(rawNoun)} here.`);
+    const thing = displayNoun(rawNoun, locale);
+    return refused(state, say(locale, gameText.messages.noThingHere, { thing }));
   }
   if (noun.kind === "item") {
-    return refused(state, `The ${WORLD.items[noun.id].name} cannot be opened.`);
+    const item = t(locale, WORLD.items[noun.id].name);
+    return refused(state, say(locale, gameText.messages.cannotOpenItem, { item }));
   }
 
-  const door = WORLD.doors[noun.id];
+  const door = t(locale, WORLD.doors[noun.id].name);
   if (!doorIsHere(state, noun.id)) {
-    return refused(state, `You cannot reach the ${door.name} from here.`);
+    return refused(state, say(locale, gameText.messages.cannotReachDoor, { door }));
   }
   if (state.doors[noun.id] === "open") {
-    return refused(state, `The ${door.name} is already open.`);
+    return refused(state, say(locale, gameText.messages.doorAlreadyOpen, { door }));
   }
-  if (!carrying(state, door.key)) {
-    return refused(state, `The ${door.name} is locked.`);
+  if (!carrying(state, WORLD.doors[noun.id].key)) {
+    return refused(state, say(locale, gameText.messages.doorIsLocked, { door }));
   }
 
   const next: WorldState = {
@@ -201,27 +219,29 @@ function open(state: Snapshot, rawNoun: string): TurnResult {
     moves: state.moves + 1,
     doors: { ...state.doors, [noun.id]: "open" },
   };
-  return committed(next, [`The ${door.name} opens.`]);
+  return committed(next, [say(locale, gameText.messages.doorOpens, { door })]);
 }
 
-export function runTurn(state: Snapshot, command: Command): TurnResult {
+export function runTurn(state: Snapshot, command: Command, locale: Locale = "en"): TurnResult {
   switch (command.kind) {
     case "look":
-      return { state, output: [roomText(state)], refused: false };
+      return { state, output: [roomText(state, locale)], refused: false };
     case "inventory":
-      return { state, output: [inventoryText(state)], refused: false };
+      return { state, output: [inventoryText(state, locale)], refused: false };
     case "wait":
-      return committed({ ...state, moves: state.moves + 1 }, ["Time passes."]);
+      return committed({ ...state, moves: state.moves + 1 }, [
+        t(locale, gameText.messages.timePasses),
+      ]);
     case "go":
-      return go(state, command.direction);
+      return go(state, command.direction, locale);
     case "take":
-      return take(state, command.noun);
+      return take(state, command.noun, locale);
     case "drop":
-      return drop(state, command.noun);
+      return drop(state, command.noun, locale);
     case "lamp":
-      return lamp(state, command.lit);
+      return lamp(state, command.lit, locale);
     case "open":
-      return open(state, command.noun);
+      return open(state, command.noun, locale);
   }
 }
 
