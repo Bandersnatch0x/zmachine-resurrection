@@ -12,6 +12,7 @@ coverage/
 
 # Editor and OS noise
 .orchestration/
+.audit/
 .playwright-cli/
 .DS_Store
 Thumbs.db
