@@ -1,3 +1,9 @@
+import {
+  ENDPOINT_QUERY_KEY,
+  ENDPOINT_STORAGE_KEY,
+  httpUrl,
+  pickEndpoint,
+} from "./frontend/endpoint";
 import { interpret } from "./frontend/interpret";
 import type { Notice } from "./frontend/interpret";
 import { sourceFromEndpoint } from "./frontend/sources";
@@ -32,8 +38,34 @@ const form = requireElement<HTMLFormElement>("#prompt-form");
 const input = requireElement<HTMLInputElement>("#command");
 const status = requireElement<HTMLElement>("#status");
 
-const endpoint: string | undefined = import.meta.env.VITE_INTERPRET_ENDPOINT;
-const model: IntentSource | null = endpoint === undefined ? null : sourceFromEndpoint(endpoint);
+function storedEndpoint(): string | null {
+  try {
+    return localStorage.getItem(ENDPOINT_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeEndpoint(endpoint: string): boolean {
+  try {
+    localStorage.setItem(ENDPOINT_STORAGE_KEY, endpoint);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const pageUrl = location.href;
+const resolution = pickEndpoint(
+  [
+    { origin: "query", value: new URLSearchParams(location.search).get(ENDPOINT_QUERY_KEY) },
+    { origin: "storage", value: storedEndpoint() },
+    { origin: "env", value: import.meta.env.VITE_INTERPRET_ENDPOINT },
+  ],
+  pageUrl,
+);
+const model: IntentSource | null =
+  resolution.endpoint === null ? null : sourceFromEndpoint(resolution.endpoint);
 const sourceLabel = model === null ? "rule parser" : model.label;
 
 const session: Session = createSession();
@@ -96,7 +128,7 @@ function runMetaCommand(command: string): boolean {
           "Typed commands: LOOK, INVENTORY, WAIT, NORTH/SOUTH/EAST/WEST, TAKE <thing>, DROP <thing>, LIGHT LAMP, EXTINGUISH LAMP, OPEN <thing>.",
         ),
         systemLine('Natural language works too: "take the key and go north".'),
-        systemLine("Meta: SAVE, RESTORE, REPLAY. These are handled before the front end."),
+        systemLine("Meta: SAVE, RESTORE, REPLAY, ENDPOINT [url]. These are handled before the front end."),
       );
       return true;
     }
@@ -117,6 +149,32 @@ function runMetaCommand(command: string): boolean {
         ),
       );
       showTurns(result.turns);
+      return true;
+    }
+    case "endpoint": {
+      const argument = command.trim().slice("endpoint".length).trim();
+      if (argument === "") {
+        push(
+          metaLine(
+            resolution.endpoint === null
+              ? "ENDPOINT · none (rule parser)"
+              : `ENDPOINT · ${resolution.endpoint} (${resolution.origin})`,
+          ),
+        );
+        return true;
+      }
+      const endpoint = httpUrl(argument, pageUrl);
+      if (endpoint === null) {
+        push(errorLine(`ENDPOINT · not an http(s) URL: ${argument}`));
+        return true;
+      }
+      if (!storeEndpoint(endpoint)) {
+        push(errorLine("ENDPOINT · localStorage is unavailable; the value was not stored"));
+        return true;
+      }
+      push(metaLine(`ENDPOINT · stored ${endpoint}; reloading`));
+      paint();
+      location.reload();
       return true;
     }
     case "replay": {
@@ -160,6 +218,13 @@ push(
   systemLine("Z-MACHINE RESURRECTION — build 0.1.0"),
   systemLine(`The interpreter owns the world. Input: ${sourceLabel}. Type HELP.`),
 );
+if (resolution.invalid !== null) {
+  push(
+    errorLine(
+      `interpret endpoint ignored (not an http(s) URL): ${resolution.invalid}; using the rule parser`,
+    ),
+  );
+}
 showRoom();
 paint();
 
