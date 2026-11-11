@@ -1,0 +1,18 @@
+node_modules/
+dist/
+coverage/
+
+# Local agent process plane (skills/ is re-included: it ships with the repo)
+.agents/*
+!.agents/skills/
+
+# Agent scratch and durable local output
+.agent/
+.scratch/
+
+# Editor and OS noise
+.orchestration/
+.playwright-cli/
+.DS_Store
+Thumbs.db
+*.log
