@@ -1,0 +1,12 @@
+{
+  "name": "Gate on interpreter change",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["src/zmachine/**/*.ts", "tests/**/*.ts"]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npm run check"
+  }
+}
