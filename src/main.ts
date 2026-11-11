@@ -94,6 +94,12 @@ function storeLocale(value: Locale): void {
 }
 
 const pageUrl = location.href;
+const allowedEndpointHosts = new Set(
+  (import.meta.env.VITE_ALLOWED_ENDPOINT_HOSTS ?? "")
+    .split(",")
+    .map((host: string) => host.trim().toLowerCase())
+    .filter((host: string) => host.length > 0),
+);
 const resolution = pickEndpoint(
   [
     { origin: "query", value: new URLSearchParams(location.search).get(ENDPOINT_QUERY_KEY) },
@@ -101,6 +107,7 @@ const resolution = pickEndpoint(
     { origin: "env", value: import.meta.env.VITE_INTERPRET_ENDPOINT },
   ],
   pageUrl,
+  allowedEndpointHosts,
 );
 const model: IntentSource | null =
   resolution.endpoint === null ? null : sourceFromEndpoint(resolution.endpoint);
@@ -114,8 +121,23 @@ const announced = new Set<string>();
 let historyIndex = 0;
 let queue: Promise<void> = Promise.resolve();
 
+function endpointHost(): string | null {
+  if (resolution.endpoint === null) {
+    return null;
+  }
+  try {
+    return new URL(resolution.endpoint).hostname;
+  } catch {
+    return null;
+  }
+}
+
 function sourceLabel(): string {
-  return t(locale, model === null ? copy.sourceRules : copy.sourceModel);
+  if (model === null) {
+    return t(locale, copy.sourceRules);
+  }
+  const host = endpointHost();
+  return host === null ? t(locale, copy.sourceModel) : `${t(locale, copy.sourceModel)} · ${host}`;
 }
 
 function originLabel(origin: string): string {

@@ -13,13 +13,13 @@ describe("runtime endpoint resolution", () => {
     expect(
       pickEndpoint(
         [
-          { origin: "query", value: "https://a.example/i" },
+          { origin: "query", value: "/api/a" },
           { origin: "storage", value: "https://b.example/i" },
           { origin: "env", value: "https://c.example/i" },
         ],
         BASE,
       ),
-    ).toEqual({ endpoint: "https://a.example/i", origin: "query", invalid: null });
+    ).toEqual({ endpoint: "https://demo.example/api/a", origin: "query", invalid: null });
 
     expect(
       pickEndpoint(
@@ -56,10 +56,39 @@ describe("runtime endpoint resolution", () => {
     for (const value of ["javascript:alert(1)", "ftp://example.com/i", "data:text/plain,x"]) {
       expect(pickEndpoint([{ origin: "query", value }], BASE)).toEqual({
         endpoint: null,
-        origin: "query",
+        origin: "none",
         invalid: value,
       });
     }
+  });
+
+  it("rejects a query endpoint on an unlisted host and falls through", () => {
+    expect(pickEndpoint([{ origin: "query", value: "https://evil.example/i" }], BASE)).toEqual({
+      endpoint: null,
+      origin: "none",
+      invalid: "https://evil.example/i",
+    });
+
+    expect(
+      pickEndpoint(
+        [
+          { origin: "query", value: "https://evil.example/i" },
+          { origin: "storage", value: "https://proxy.example/i" },
+        ],
+        BASE,
+      ),
+    ).toEqual({
+      endpoint: "https://proxy.example/i",
+      origin: "storage",
+      invalid: "https://evil.example/i",
+    });
+  });
+
+  it("allows a listed host for the query endpoint", () => {
+    const allowed = new Set(["proxy.example"]);
+    expect(
+      pickEndpoint([{ origin: "query", value: "https://proxy.example/i" }], BASE, allowed),
+    ).toEqual({ endpoint: "https://proxy.example/i", origin: "query", invalid: null });
   });
 
   it("returns no endpoint when every candidate is blank", () => {
