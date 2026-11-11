@@ -5,11 +5,11 @@
 
 | 交付物 | 要求 | 位置 | 状态 |
 | --- | --- | --- | --- |
-| 公开 GitHub 仓库 | 公开可访问 | 远端仓库 | 待办(尚未 push) |
+| 公开 GitHub 仓库 | 公开可访问 | https://github.com/Bandersnatch0x/zmachine-resurrection | 已完成 |
 | 开源许可 | About 区可见 LICENSE | `LICENSE`(MIT) | 已完成(本地) |
 | 新建时间 | 2026-10-30 之后创建 | 首个提交 `c8fe2f3` | 已完成 |
 | `.kiro` 目录 | 含 specs / hooks / steering,且未被忽略 | `.kiro/` | 已完成 |
-| 可运行应用 | 提交可访问的 app URL | 待部署 | 待办 |
+| 可运行应用 | 提交可访问的 app URL | https://bandersnatch0x.github.io/zmachine-resurrection/ | 已完成 |
 | 本地可运行 | `npm install && npm run dev` | `README.md` | 已完成 |
 | 门禁 | `npm run check` 全绿 | `package.json` | 已完成 |
 | 构建 | `npm run build` 通过 | `dist/` | 已完成 |
