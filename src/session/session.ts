@@ -24,6 +24,7 @@ export interface SessionView {
   readonly moves: number;
   readonly logLength: number;
   readonly checkpointLength: number;
+  readonly hasCheckpoint: boolean;
 }
 
 export interface Session {
@@ -53,6 +54,7 @@ function run(state: Snapshot, commands: readonly Command[]): CommitResult {
  * always snapshot plus commands, never natural language and never model text.
  */
 export function createSession(start: Snapshot = INITIAL_STATE): Session {
+  const origin = start;
   let state = start;
   let log: SessionEntry[] = [];
   let checkpoint: { readonly at: number; readonly state: Snapshot } | null = null;
@@ -70,6 +72,7 @@ export function createSession(start: Snapshot = INITIAL_STATE): Session {
         moves: state.moves,
         logLength: log.length,
         checkpointLength: checkpoint?.at ?? 0,
+        hasCheckpoint: checkpoint !== null,
       };
     },
     describe(): readonly string[] {
@@ -93,7 +96,7 @@ export function createSession(start: Snapshot = INITIAL_STATE): Session {
       return { state, turns: [] };
     },
     replayAll(): readonly TurnSummary[] {
-      let current = INITIAL_STATE;
+      let current = origin;
       const turns: TurnSummary[] = [];
       for (const entry of log) {
         const result = run(current, entry.commands);

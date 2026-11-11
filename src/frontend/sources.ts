@@ -6,7 +6,9 @@ export interface IntentSource {
   interpret(raw: string): Promise<unknown>;
 }
 
-const CLAUSE_SPLIT = /\s*[,;]\s*|\s+(?:and then|then|and)\s+/i;
+const CLAUSE_SPLIT = /\s*[,;]\s*|\s*\.\s+|\s+(?:and then|then|and)\s+/i;
+
+export const DEFAULT_TIMEOUT_MS = 4000;
 
 const DIRECTION_WORDS: Readonly<Record<string, Direction>> = {
   north: "north",
@@ -125,20 +127,36 @@ export function createRuleSource(): IntentSource {
   };
 }
 
-export function createHttpSource(endpoint: string, fetchImpl: typeof fetch = fetch): IntentSource {
+export function createHttpSource(
+  endpoint: string,
+  fetchImpl: typeof fetch = fetch,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): IntentSource {
   return {
     id: "http",
     label: "language model",
     async interpret(raw: string): Promise<unknown> {
-      const response = await fetchImpl(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: raw }),
-      });
-      if (!response.ok) {
-        throw new Error(`interpret endpoint returned ${response.status}`);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetchImpl(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input: raw }),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`interpret endpoint returned ${response.status}`);
+        }
+        return response.json();
+      } catch (error: unknown) {
+        if (controller.signal.aborted) {
+          throw new Error("interpret endpoint timed out");
+        }
+        throw error;
+      } finally {
+        clearTimeout(timer);
       }
-      return response.json();
     },
   };
 }

@@ -31,6 +31,20 @@ function trace(commands: readonly Command[]): Snapshot {
   return state;
 }
 
+function runTranscript(
+  commands: readonly Command[],
+  start: Snapshot,
+): { state: Snapshot; output: readonly string[] } {
+  let state = start;
+  const output: string[] = [];
+  for (const command of commands) {
+    const result = runTurn(state, command);
+    state = result.state;
+    output.push(...result.output);
+  }
+  return { state, output };
+}
+
 function play(commands: readonly Command[], start: Snapshot = INITIAL_STATE): Snapshot {
   return commands.reduce((state, command) => runTurn(state, command).state, start);
 }
@@ -51,11 +65,24 @@ function runText(inputs: readonly string[]): { state: Snapshot; output: readonly
   return { state, output };
 }
 
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === "object") {
+    for (const nested of Object.values(value)) {
+      deepFreeze(nested);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}
+
 describe("Z-machine deterministic core", () => {
-  it("produces identical state and transcript for the same command sequence", () => {
+  it("produces identical state and transcript across two independent replays", () => {
     fc.assert(
       fc.property(commandSequence, (commands) => {
-        expect(trace(commands)).toEqual(trace(commands));
+        const first = runTranscript(commands, INITIAL_STATE);
+        const second = runTranscript(commands, INITIAL_STATE);
+        expect(second.state).toEqual(first.state);
+        expect(second.output).toEqual(first.output);
       }),
     );
   });
@@ -72,11 +99,10 @@ describe("Z-machine deterministic core", () => {
   });
 
   it("never mutates the input state", () => {
-    const before = structuredClone(INITIAL_STATE) as Snapshot;
+    const start = deepFreeze(structuredClone(INITIAL_STATE) as Snapshot);
     fc.assert(
       fc.property(commandSequence, (commands) => {
-        trace(commands);
-        expect(structuredClone(INITIAL_STATE)).toEqual(before);
+        expect(() => runTranscript(commands, start)).not.toThrow();
       }),
     );
   });

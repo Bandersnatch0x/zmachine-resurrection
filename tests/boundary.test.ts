@@ -4,10 +4,25 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
 
+const SKIP_DIRECTORIES = new Set([
+  "node_modules",
+  "dist",
+  "coverage",
+  ".git",
+  ".audit",
+  ".agent",
+  ".agents",
+  ".orchestration",
+  ".playwright-cli",
+]);
+
 function walk(directory: string): readonly string[] {
   const entries = readdirSync(directory);
   const files: string[] = [];
   for (const entry of entries) {
+    if (SKIP_DIRECTORIES.has(entry)) {
+      continue;
+    }
     const full = join(directory, entry);
     if (statSync(full).isDirectory()) {
       files.push(...walk(full));

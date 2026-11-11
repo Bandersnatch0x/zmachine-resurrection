@@ -84,6 +84,18 @@ describe("compileIntent", () => {
     }
   });
 
+  it("caps the claim list at MAX_CLAIMS", () => {
+    const result = compileIntent({
+      commands: [{ kind: "wait" }],
+      claims: ["one", "two", "three", "four", "five"],
+      narration: "six",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.intent.claims).toEqual(["one", "two", "three", "four"]);
+    }
+  });
+
   it("rejects empty and oversized command lists", () => {
     expect(compileIntent({ commands: [] }).ok).toBe(false);
     expect(compileIntent({ commands: Array.from({ length: 9 }, () => ({ kind: "look" })) }).ok).toBe(
@@ -115,7 +127,7 @@ describe("rule source", () => {
     expect(parseRuleIntent("wait")).toEqual([{ kind: "wait" }]);
   });
 
-  it("splits compound clauses on and, then, commas, and semicolons", () => {
+  it("splits compound clauses on and, then, commas, semicolons, and full stops", () => {
     const expected = [
       { kind: "take", noun: "key" },
       { kind: "go", direction: "north" },
@@ -126,6 +138,8 @@ describe("rule source", () => {
       "take the key; go north",
       "take the key then go north",
       "take the key and then go north",
+      "take the key. go north",
+      "Take the key. Go north.",
     ]) {
       expect(parseRuleIntent(input)).toEqual(expected);
     }
@@ -186,6 +200,42 @@ describe("HTTP source", () => {
     expect(sourceFromEndpoint(undefined).id).toBe("rules");
     expect(sourceFromEndpoint("   ").id).toBe("rules");
     expect(sourceFromEndpoint("/api/interpret").id).toBe("http");
+  });
+
+  it("aborts a request that outlives the timeout", async () => {
+    let aborted = false;
+    const never: typeof fetch = (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          aborted = true;
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+
+    const source = createHttpSource("/api/interpret", never, 10);
+    await expect(source.interpret("go north")).rejects.toThrow("interpret endpoint timed out");
+    expect(aborted).toBe(true);
+
+    const outcome = await interpret("walk north", source);
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.via).toBe("rules");
+      expect(outcome.notices[0]?.text).toContain("timed out");
+    }
+  });
+
+  it("passes an abort signal and clears the timer on a fast reply", async () => {
+    let signal: AbortSignal | null | undefined;
+    const fast: typeof fetch = (_url, init) => {
+      signal = init?.signal;
+      return Promise.resolve(
+        new Response(JSON.stringify({ commands: [{ kind: "look" }] }), { status: 200 }),
+      );
+    };
+    const source = createHttpSource("/api/interpret", fast, 50);
+    await source.interpret("look around");
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal?.aborted).toBe(false);
   });
 });
 

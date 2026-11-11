@@ -104,6 +104,27 @@ describe("session log and checkpoint", () => {
     expect(session.log[0]?.input).toContain("take the key");
   });
 
+  it("reports whether a checkpoint exists, including one saved at input 0", () => {
+    const session = createSession();
+    expect(session.view().hasCheckpoint).toBe(false);
+    expect(session.view().checkpointLength).toBe(0);
+
+    session.save();
+    expect(session.view().hasCheckpoint).toBe(true);
+    expect(session.view().checkpointLength).toBe(0);
+  });
+
+  it("replays from the start snapshot it was created with", () => {
+    const start = replay([{ kind: "go", direction: "north" }]);
+    const session = createSession(start);
+    session.commit({ input: "south", commands: [{ kind: "go", direction: "south" }] });
+
+    const turns = session.replayAll();
+    expect(turns.length).toBe(1);
+    expect(session.state.location).toBe("cell");
+    expect(session.state.moves).toBe(2);
+  });
+
   it("starts from the shared initial snapshot", () => {
     const session = createSession();
     expect(session.state).toBe(INITIAL_STATE);

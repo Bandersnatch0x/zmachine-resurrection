@@ -3,6 +3,7 @@ import type { Command } from "../zmachine/protocol";
 
 export const MAX_INTENTS = 8;
 export const MAX_CLAIM_LENGTH = 160;
+export const MAX_CLAIMS = 4;
 
 export interface Intent {
   readonly commands: readonly Command[];
@@ -67,7 +68,7 @@ function readClaims(payload: Readonly<Record<string, unknown>>): readonly string
       }
     }
   }
-  return claims;
+  return claims.slice(0, MAX_CLAIMS);
 }
 
 /**

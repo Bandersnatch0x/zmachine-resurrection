@@ -73,6 +73,7 @@ const lines: Line[] = [];
 const history: string[] = [];
 const announced = new Set<string>();
 let historyIndex = 0;
+let queue: Promise<void> = Promise.resolve();
 
 function push(...added: readonly Line[]): void {
   lines.push(...added);
@@ -143,12 +144,13 @@ function runMetaCommand(command: string): boolean {
       const after = session.view();
       push(
         metaLine(
-          before.checkpointLength === 0
+          !before.hasCheckpoint
             ? "RESTORE · no checkpoint saved yet"
             : `RESTORE · truncated ${before.logLength - after.logLength} input(s) back to the checkpoint`,
         ),
       );
       showTurns(result.turns);
+      showRoom();
       return true;
     }
     case "endpoint": {
@@ -189,6 +191,16 @@ function runMetaCommand(command: string): boolean {
 }
 
 async function submit(raw: string): Promise<void> {
+  try {
+    await deliver(raw);
+  } catch (error: unknown) {
+    const detail = error instanceof Error ? error.message : "unknown error";
+    push(errorLine(`submission failed: ${detail}`));
+    paint();
+  }
+}
+
+async function deliver(raw: string): Promise<void> {
   const command = raw.trim();
   if (command === "") {
     return;
@@ -236,7 +248,7 @@ form.addEventListener("submit", (event) => {
     history.push(raw);
     historyIndex = history.length;
   }
-  void submit(raw);
+  queue = queue.then(() => submit(raw));
 });
 
 input.addEventListener("keydown", (event) => {
